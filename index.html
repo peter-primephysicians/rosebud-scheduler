@@ -1,28 +1,42 @@
-<script>
-  // ✅ correct values
-  const SUPABASE_URL = "https://zviwpzybkpzmavbgpqoz.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM";
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Rosebud Scheduler</title>
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  async function sendMagicLink() {
-    const email = document.getElementById("email").value.trim();
-    if (!email) return alert("Enter your email.");
+  <style>
+    body { font-family: system-ui; background:#111; color:white; padding:20px }
+    input,button{padding:10px;margin:5px}
+  </style>
+</head>
 
-    try {
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email,
+<body>
+  <h1>Rosebud Scheduler</h1>
+
+  <input id="email" placeholder="email" />
+  <button onclick="login()">Send Link</button>
+
+  <script>
+    const supabase = window.supabase.createClient(
+      "https://zviwpzybkpzmavbgpqoz.supabase.co",
+      "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM"
+    )
+
+    async function login() {
+      const email = document.getElementById('email').value
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
         options: {
-          // force the redirect back to your deployed site
-          emailRedirectTo: "https://rosebud-scheduler.vercel.app/"
+          emailRedirectTo: "https://rosebud-scheduler.vercel.app"
         }
-      });
+      })
 
-      if (error) throw error;
-      alert("Magic link sent (check email/junk).");
-    } catch (e) {
-      console.error(e);
-      alert("Login error: " + (e?.message || JSON.stringify(e)));
+      if (error) alert(error.message)
+      else alert("Magic link sent")
     }
-  }
-</script>
+  </script>
+</body>
+</html>
