@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Rosebud Scheduler</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body{font-family:system-ui;background:#0b0c10;color:#eee;padding:20px}
+    input,button{padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#eee}
+    .card{background:#111;padding:16px;border-radius:12px;margin-bottom:16px}
+  </style>
+</head>
+<body>
+  <h1>Rosebud Scheduler</h1>
+
+  <div class="card">
+    <h3>Login (magic link)</h3>
+    <input id="email" placeholder="email"/>
+    <button onclick="login()">Send Link</button>
+  </div>
+
+  <div class="card">
+    <h3>Shifts</h3>
+    <button onclick="load()">Load Shifts</button>
+    <pre id="out"></pre>
+  </div>
+
+<script>
+const SUPABASE_URL = "PASTE_URL_HERE";
+const SUPABASE_KEY = "PASTE_ANON_KEY_HERE";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function login(){
+  const email=document.getElementById('email').value;
+  await supabase.auth.signInWithOtp({email});
+  alert("Check email");
+}
+
+async function load(){
+  const {data,error}=await supabase.from("shifts").select("*").limit(50);
+  document.getElementById("out").textContent=JSON.stringify(data||error,null,2);
+}
+</script>
+</body>
+</html>
