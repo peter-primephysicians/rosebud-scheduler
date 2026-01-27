@@ -1,47 +1,67 @@
-
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
   <title>Rosebud Scheduler</title>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    body{font-family:system-ui;background:#0b0c10;color:#eee;padding:20px}
-    input,button{padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#eee}
-    .card{background:#111;padding:16px;border-radius:12px;margin-bottom:16px}
+    body {
+      background:#0b0b0b;
+      color:white;
+      font-family:system-ui;
+      padding:20px;
+    }
+    input, button {
+      padding:10px;
+      margin:6px 0;
+    }
   </style>
 </head>
+
 <body>
   <h1>Rosebud Scheduler</h1>
 
-  <div class="card">
-    <h3>Login (magic link)</h3>
-    <input id="email" placeholder="email"/>
-    <button onclick="login()">Send Link</button>
-  </div>
+  <h3>Login (magic link)</h3>
+  <input id="email" placeholder="email" />
+  <button onclick="login()">Send Link</button>
 
-  <div class="card">
-    <h3>Shifts</h3>
-    <button onclick="load()">Load Shifts</button>
-    <pre id="out"></pre>
-  </div>
+  <h3>Shifts</h3>
+  <button onclick="loadShifts()">Load Shifts</button>
+
+  <pre id="output"></pre>
 
 <script>
-const SUPABASE_URL = "PASTE_URL_HERE";
-const SUPABASE_KEY = "PASTE_ANON_KEY_HERE";
+/* ✅ YOUR REAL KEYS INSERTED HERE */
+const SUPABASE_URL = "https://zviwpzybkpzmavbgpqoz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
-async function login(){
-  const email=document.getElementById('email').value;
-  await supabase.auth.signInWithOtp({email});
-  alert("Check email");
+async function login() {
+  const email = document.getElementById("email").value;
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email
+  });
+
+  if (error) alert(error.message);
+  else alert("Magic link sent — check email");
 }
 
-async function load(){
-  const {data,error}=await supabase.from("shifts").select("*").limit(50);
-  document.getElementById("out").textContent=JSON.stringify(data||error,null,2);
+async function loadShifts() {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*");
+
+  document.getElementById("output").textContent =
+    error ? error.message : JSON.stringify(data, null, 2);
 }
 </script>
+
 </body>
 </html>
