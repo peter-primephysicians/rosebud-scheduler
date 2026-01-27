@@ -1,67 +1,28 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Rosebud Scheduler</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    body {
-      background:#0b0b0b;
-      color:white;
-      font-family:system-ui;
-      padding:20px;
-    }
-    input, button {
-      padding:10px;
-      margin:6px 0;
-    }
-  </style>
-</head>
-
-<body>
-  <h1>Rosebud Scheduler</h1>
-
-  <h3>Login (magic link)</h3>
-  <input id="email" placeholder="email" />
-  <button onclick="login()">Send Link</button>
-
-  <h3>Shifts</h3>
-  <button onclick="loadShifts()">Load Shifts</button>
-
-  <pre id="output"></pre>
-
 <script>
-/* ✅ YOUR REAL KEYS INSERTED HERE */
-const SUPABASE_URL = "https://zviwpzybkpzmavbgpqoz.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM";
+  // ✅ correct values
+  const SUPABASE_URL = "https://zviwpzybkpzmavbgpqoz.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM";
 
-const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-async function login() {
-  const email = document.getElementById("email").value;
+  async function sendMagicLink() {
+    const email = document.getElementById("email").value.trim();
+    if (!email) return alert("Enter your email.");
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email
-  });
+    try {
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          // force the redirect back to your deployed site
+          emailRedirectTo: "https://rosebud-scheduler.vercel.app/"
+        }
+      });
 
-  if (error) alert(error.message);
-  else alert("Magic link sent — check email");
-}
-
-async function loadShifts() {
-  const { data, error } = await supabase
-    .from("shifts")
-    .select("*");
-
-  document.getElementById("output").textContent =
-    error ? error.message : JSON.stringify(data, null, 2);
-}
+      if (error) throw error;
+      alert("Magic link sent (check email/junk).");
+    } catch (e) {
+      console.error(e);
+      alert("Login error: " + (e?.message || JSON.stringify(e)));
+    }
+  }
 </script>
-
-</body>
-</html>
