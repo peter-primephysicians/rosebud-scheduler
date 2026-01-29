@@ -4,21 +4,19 @@
   <meta charset="UTF-8" />
   <title>Rosebud Scheduler</title>
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- ✅ defer = wait until page loads -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     body {
       font-family: system-ui;
-      background: #111;
-      color: white;
-      padding: 20px;
+      background:#111;
+      color:white;
+      padding:20px;
     }
-
-    input, button {
-      padding: 10px;
-      margin: 5px;
-      font-size: 16px;
+    input,button{
+      padding:10px;
+      margin:5px;
     }
   </style>
 </head>
@@ -26,4 +24,38 @@
 <body>
   <h1>Rosebud Scheduler</h1>
 
-  <input id="email" placeholder="email@example.com"
+  <input id="email" placeholder="email@example.com" />
+  <button id="loginBtn">Send Link</button>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+
+      const supabase = window.supabase.createClient(
+        "https://zviwpzybkpzmavbgpqoz.supabase.co",
+        "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM"
+      )
+
+      document.getElementById("loginBtn").onclick = async () => {
+
+        const email = document.getElementById('email').value
+
+        if (!email) {
+          alert("Enter email")
+          return
+        }
+
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: "https://rosebud-scheduler.vercel.app"
+          }
+        })
+
+        if (error) alert(error.message)
+        else alert("Magic link sent — check email")
+      }
+
+    })
+  </script>
+</body>
+</html>
