@@ -7,8 +7,16 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    body { font-family: system-ui; background:#111; color:white; padding:20px }
-    input,button{padding:10px;margin:5px}
+    body {
+      font-family: system-ui;
+      background:#111;
+      color:white;
+      padding:20px
+    }
+    input,button{
+      padding:10px;
+      margin:5px
+    }
   </style>
 </head>
 
@@ -16,7 +24,10 @@
   <h1>Rosebud Scheduler</h1>
 
   <input id="email" placeholder="email" />
-  <button onclick="alert('clicked')">Send Link</button>
+
+  <!-- ✅ THIS IS THE IMPORTANT FIX -->
+  <button onclick="login()">Send Link</button>
+
   <script>
     const supabase = window.supabase.createClient(
       "https://zviwpzybkpzmavbgpqoz.supabase.co",
@@ -26,15 +37,23 @@
     async function login() {
       const email = document.getElementById('email').value
 
+      if (!email) {
+        alert("Enter email first")
+        return
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: "https://rosebud-scheduler.vercel.app"
+          emailRedirectTo: window.location.origin
         }
       })
 
-      if (error) alert(error.message)
-      else alert("Magic link sent")
+      if (error) {
+        alert(error.message)
+      } else {
+        alert("Magic link sent — check email")
+      }
     }
   </script>
 </body>
