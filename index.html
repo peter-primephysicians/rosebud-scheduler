@@ -2,60 +2,80 @@
 <html>
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rosebud Scheduler</title>
 
-  <!-- ✅ defer = wait until page loads -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Load Supabase first -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    body {
-      font-family: system-ui;
-      background:#111;
-      color:white;
-      padding:20px;
-    }
-    input,button{
-      padding:10px;
-      margin:5px;
-    }
+    body { font-family: system-ui; background:#111; color:#fff; padding:20px }
+    input, button { padding:12px; margin:6px 0; font-size:16px }
+    #row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+    #email { min-width: 260px; }
+    #status { margin-top:12px; white-space:pre-wrap; color:#ddd }
   </style>
 </head>
 
 <body>
   <h1>Rosebud Scheduler</h1>
 
-  <input id="email" placeholder="email@example.com" />
-  <button id="loginBtn">Send Link</button>
+  <div id="row">
+    <input id="email" placeholder="email@example.com" />
+    <button id="sendBtn" type="button">Send Link</button>
+  </div>
+
+  <div id="status"></div>
 
   <script>
-    window.addEventListener("DOMContentLoaded", () => {
+    const SUPABASE_URL = "https://zviwpzybkpzmavbgpqoz.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM";
 
-      const supabase = window.supabase.createClient(
-        "https://zviwpzybkpzmavbgpqoz.supabase.co",
-        "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM"
-      )
+    const statusEl = document.getElementById("status");
+    const btn = document.getElementById("sendBtn");
 
-      document.getElementById("loginBtn").onclick = async () => {
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
 
-        const email = document.getElementById('email').value
+    // Safety check: did the library load?
+    if (!window.supabase) {
+      setStatus("ERROR: Supabase library did not load. (Check network / adblock / script tag)");
+      throw new Error("Supabase library missing");
+    }
 
-        if (!email) {
-          alert("Enter email")
-          return
-        }
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-        const { error } = await supabase.auth.signInWithOtp({
+    btn.addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      if (!email) return setStatus("Enter an email address first.");
+
+      btn.disabled = true;
+      setStatus("Sending magic link...");
+
+      try {
+        const { data, error } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: "https://rosebud-scheduler.vercel.app"
+            // IMPORTANT: must be allowed in Supabase Auth settings (see steps below)
+            emailRedirectTo: "https://rosebud-scheduler.vercel.app/"
           }
-        })
+        });
 
-        if (error) alert(error.message)
-        else alert("Magic link sent — check email")
+        if (error) {
+          console.error(error);
+          setStatus("ERROR sending link:\n" + error.message);
+        } else {
+          console.log(data);
+          setStatus("✅ Magic link sent. Check inbox/spam.\n(If you don’t receive it, Auth settings/SMTP is usually the reason.)");
+        }
+      } catch (e) {
+        console.error(e);
+        setStatus("ERROR:\n" + (e?.message || JSON.stringify(e)));
+      } finally {
+        btn.disabled = false;
       }
-
-    })
+    });
   </script>
 </body>
 </html>
