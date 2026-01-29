@@ -4,18 +4,21 @@
   <meta charset="UTF-8" />
   <title>Rosebud Scheduler</title>
 
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     body {
       font-family: system-ui;
-      background:#111;
-      color:white;
-      padding:20px
+      background: #111;
+      color: white;
+      padding: 20px;
     }
-    input,button{
-      padding:10px;
-      margin:5px
+
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
     }
   </style>
 </head>
@@ -23,38 +26,4 @@
 <body>
   <h1>Rosebud Scheduler</h1>
 
-  <input id="email" placeholder="email" />
-
-  <!-- ✅ THIS IS THE IMPORTANT FIX -->
-  <button onclick="login()">Send Link</button>
-
-  <script>
-    const supabase = window.supabase.createClient(
-      "https://zviwpzybkpzmavbgpqoz.supabase.co",
-      "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM"
-    )
-
-    async function login() {
-      const email = document.getElementById('email').value
-
-      if (!email) {
-        alert("Enter email first")
-        return
-      }
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          emailRedirectTo: window.location.origin
-        }
-      })
-
-      if (error) {
-        alert(error.message)
-      } else {
-        alert("Magic link sent — check email")
-      }
-    }
-  </script>
-</body>
-</html>
+  <input id="email" placeholder="email@example.com"
