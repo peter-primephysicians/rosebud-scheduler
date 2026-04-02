@@ -2,78 +2,300 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rosebud Scheduler</title>
-
-  <!-- Load Supabase first -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <title>Provider Availability & Preferences</title>
   <style>
-    body { font-family: system-ui; background:#111; color:#fff; padding:20px }
-    input, button { padding:12px; margin:6px 0; font-size:16px }
-    #row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
-    #email { min-width: 260px; }
-    #status { margin-top:12px; white-space:pre-wrap; color:#ddd }
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    input, textarea { width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; }
+
+    .month-block { margin-top: 15px; border: 1px solid #ddd; padding: 10px; border-radius: 4px; }
+    .month-title { font-weight: bold; margin-bottom: 5px; }
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 5px; }
+
+    .day { padding: 6px; border: 1px solid #ccc; text-align: center; cursor: pointer; font-size: 0.85rem; }
+    .day-header { font-weight: bold; border: none; cursor: default; }
+    .selected { background-color: #cce5ff; }
+
+    button { margin-top: 15px; padding: 8px 16px; }
+    #status { margin-top: 10px; font-weight: bold; }
+    .small { font-size: 0.85rem; color: #555; }
   </style>
 </head>
-
 <body>
-  <h1>Rosebud Scheduler</h1>
+  <h2>Provider Availability & Preferences</h2>
+  <p>Please confirm your contact information and select your available days for this 3-month block.</p>
+  <p id="shift_info" class="small"></p>
 
-  <div id="row">
-    <input id="email" placeholder="email@example.com" />
-    <button id="sendBtn" type="button">Send Link</button>
-  </div>
+  <form id="providerForm">
+    <!-- Hidden metadata -->
+    <input type="hidden" id="provider_id" name="provider_id" />
+    <input type="hidden" id="role" name="role" />
+    <input type="hidden" id="cycle_start" name="cycle_start" />
+    <input type="hidden" id="month1_availability" name="month1_availability" />
+    <input type="hidden" id="month2_availability" name="month2_availability" />
+    <input type="hidden" id="month3_availability" name="month3_availability" />
+    <input type="hidden" id="shift_template" name="shift_template" />
 
-  <div id="status"></div>
+    <label>
+      Name
+      <input type="text" id="name" name="name" required />
+    </label>
+
+    <label>
+      Email
+      <input type="email" id="email" name="email" required />
+    </label>
+
+    <label>
+      Mobile Phone
+      <input type="tel" id="phone" name="phone" />
+    </label>
+
+    <label>
+      Scheduling Preferences / Notes
+      <textarea id="preferences" name="preferences" rows="3"></textarea>
+    </label>
+
+    <div class="month-block">
+      <div class="month-title" id="month1_label"></div>
+      <div id="month1_calendar" class="calendar"></div>
+    </div>
+
+    <div class="month-block">
+      <div class="month-title" id="month2_label"></div>
+      <div id="month2_calendar" class="calendar"></div>
+    </div>
+
+    <div class="month-block">
+      <div class="month-title" id="month3_label"></div>
+      <div id="month3_calendar" class="calendar"></div>
+    </div>
+
+    <button type="submit" id="submit_button">Submit Availability</button>
+    <div id="status"></div>
+  </form>
 
   <script>
-    const SUPABASE_URL = "https://zviwpzybkpzmavbgpqoz.supabase.co";
-    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_XSQo1_pfokZ9fjaon5tQjg_a3qjXBEM";
+    // ===== CONFIG: Change these for each 3-month scheduling block =====
 
-    const statusEl = document.getElementById("status");
-    const btn = document.getElementById("sendBtn");
+    // Example: Jul–Sep 2026
+    const BASE_YEAR = 2026;
+    const BASE_MONTH = 6; // 0=Jan, 3=Apr, 6=Jul, 9=Oct
 
-    function setStatus(msg) {
-      statusEl.textContent = msg;
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzEeDIAtvj93ur72Mc1mPiue9OaW7PpmOFOjWk3CBnGLUm95gjn7Pu7JszUJm0e3mf8yw/exec';
+
+    // Read provider ID & role from URL (e.g. ?pid=ABEM_X&role=ABEM&name=First%20Last&email=foo)
+    const params = new URLSearchParams(window.location.search);
+
+    const pid = params.get('pid') || '';
+    const role = params.get('role') || '';
+
+    document.getElementById('provider_id').value = pid;
+    document.getElementById('role').value = role;
+
+    const nameFromUrl = params.get('name');
+    if (nameFromUrl) {
+      document.getElementById('name').value = decodeURIComponent(nameFromUrl);
     }
 
-    // Safety check: did the library load?
-    if (!window.supabase) {
-      setStatus("ERROR: Supabase library did not load. (Check network / adblock / script tag)");
-      throw new Error("Supabase library missing");
+    const emailFromUrl = params.get('email');
+    if (emailFromUrl) {
+      document.getElementById('email').value = decodeURIComponent(emailFromUrl);
     }
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    // Shift template text by role
+    const roleShiftInfo = {
+      ABEM: {
+        label:
+          'Your shift template for selected days: ABEM 8:00 am – 8:00 pm or 8:00 pm – 8:00 am. ' +
+          'Please indicate in the Scheduling Preferences / Notes box if you prefer day or night shifts.',
+        template: '08:00-20:00 / 20:00-08:00'
+      },
+      FMIM: {
+        label: 'Your shift template for selected days: FM/IM 12:00 pm – 12:00 am',
+        template: '12:00-00:00'
+      },
+      APP: {
+        label: 'Your shift template for selected days: APP 7:00 am – 7:00 pm',
+        template: '07:00-19:00'
+      }
+    };
 
-    btn.addEventListener("click", async () => {
-      const email = document.getElementById("email").value.trim();
-      if (!email) return setStatus("Enter an email address first.");
+    const shiftInfo = roleShiftInfo[role];
+    if (shiftInfo) {
+      document.getElementById('shift_info').textContent = shiftInfo.label;
+      document.getElementById('shift_template').value = shiftInfo.template;
+    } else {
+      document.getElementById('shift_info').textContent =
+        'Shifts (fixed by role): ABEM 8a–8p or 8p–8a (note day/night preference in Preferences), FM/IM 12p–12a, APP 7a–7p.';
+    }
 
-      btn.disabled = true;
-      setStatus("Sending magic link...");
+    // Set cycle_start to first day of Month 1
+    const cycleStartDate = new Date(BASE_YEAR, BASE_MONTH, 1);
+    const cycleStartIso = cycleStartDate.toISOString().split('T')[0];
+    document.getElementById('cycle_start').value = cycleStartIso;
 
-      try {
-        const { data, error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            // IMPORTANT: must be allowed in Supabase Auth settings (see steps below)
-            emailRedirectTo: "https://rosebud-scheduler.vercel.app/"
+    // Build a clickable month calendar that fills a hidden JSON array of dates
+    function buildMonthCalendar(year, monthIndex, containerId, hiddenInputId, labelId) {
+      const container = document.getElementById(containerId);
+      const labelEl = document.getElementById(labelId);
+      const hiddenInput = document.getElementById(hiddenInputId);
+
+      container.innerHTML = '';
+
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      labelEl.textContent = monthNames[monthIndex] + ' ' + year;
+
+      const selectedDates = new Set();
+
+      const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      weekdays.forEach(d => {
+        const h = document.createElement('div');
+        h.textContent = d;
+        h.className = 'day day-header';
+        container.appendChild(h);
+      });
+
+      const firstDay = new Date(year, monthIndex, 1);
+      const lastDay = new Date(year, monthIndex + 1, 0);
+      const numDays = lastDay.getDate();
+      const startWeekday = firstDay.getDay(); // 0=Sun
+
+      // Blank cells before the first of the month
+      for (let i = 0; i < startWeekday; i++) {
+        const empty = document.createElement('div');
+        container.appendChild(empty);
+      }
+
+      for (let d = 1; d <= numDays; d++) {
+        const dateObj = new Date(year, monthIndex, d);
+        const iso = dateObj.toISOString().split('T')[0];
+
+        const dayEl = document.createElement('div');
+        dayEl.className = 'day';
+        dayEl.textContent = d;
+        dayEl.dataset.date = iso;
+
+        dayEl.addEventListener('click', () => {
+          if (dayEl.classList.contains('disabled')) {
+            return; // do nothing if block is already submitted
           }
+
+          if (selectedDates.has(iso)) {
+            selectedDates.delete(iso);
+            dayEl.classList.remove('selected');
+          } else {
+            selectedDates.add(iso);
+            dayEl.classList.add('selected');
+          }
+
+          hiddenInput.value = JSON.stringify(Array.from(selectedDates).sort());
         });
 
-        if (error) {
-          console.error(error);
-          setStatus("ERROR sending link:\n" + error.message);
-        } else {
-          console.log(data);
-          setStatus("✅ Magic link sent. Check inbox/spam.\n(If you don’t receive it, Auth settings/SMTP is usually the reason.)");
+        container.appendChild(dayEl);
+      }
+    }
+
+    buildMonthCalendar(BASE_YEAR, BASE_MONTH, 'month1_calendar', 'month1_availability', 'month1_label');
+    buildMonthCalendar(BASE_YEAR, BASE_MONTH + 1, 'month2_calendar', 'month2_availability', 'month2_label');
+    buildMonthCalendar(BASE_YEAR, BASE_MONTH + 2, 'month3_calendar', 'month3_availability', 'month3_label');
+
+    // ===== Check if this provider has already submitted for this block =====
+    async function checkExistingSubmission() {
+      const statusEl = document.getElementById('status');
+      if (!pid) return;
+
+      try {
+        const resp = await fetch(
+          SCRIPT_URL +
+          '?provider_id=' + encodeURIComponent(pid) +
+          '&cycle_start=' + encodeURIComponent(cycleStartIso)
+        );
+
+        if (!resp.ok) return;
+
+        const result = await resp.json();
+
+        if (result.status === 'SUBMITTED') {
+          statusEl.textContent =
+            'Our records show you have already submitted availability for this 3-month block. ' +
+            'If you need any changes, please contact the scheduler.';
+
+          const submitBtn = document.getElementById('submit_button');
+          if (submitBtn) submitBtn.disabled = true;
+
+          // Visually disable calendars
+          document.querySelectorAll('.calendar .day').forEach(el => {
+            el.classList.add('disabled');
+            el.style.opacity = '0.5';
+            el.style.cursor = 'default';
+          });
         }
-      } catch (e) {
-        console.error(e);
-        setStatus("ERROR:\n" + (e?.message || JSON.stringify(e)));
-      } finally {
-        btn.disabled = false;
+      } catch (err) {
+        console.error('Error checking existing submission', err);
+      }
+    }
+
+    checkExistingSubmission();
+
+    // ===== Submission handler =====
+    const form = document.getElementById('providerForm');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const statusEl = document.getElementById('status');
+
+      statusEl.textContent = 'Submitting...';
+
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      // Require at least one available day in Month 1 on first submission
+      if (!data.month1_availability || data.month1_availability === '[]') {
+        statusEl.textContent = 'Please select at least one available day in Month 1 (July).';
+        return;
+      }
+
+      try {
+        const resp = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify(data)
+        });
+
+        let result = null;
+        try {
+          result = await resp.json();
+        } catch (parseErr) {
+          console.error('Error parsing response JSON', parseErr);
+        }
+
+        if (result && result.status === 'BLOCKED') {
+          statusEl.textContent =
+            'Our records show you have already submitted availability for this 3-month block. ' +
+            'If you need to make changes, please contact the scheduler.';
+
+          const submitBtn = document.getElementById('submit_button');
+          if (submitBtn) submitBtn.disabled = true;
+          return;
+        }
+
+        if (result && result.status === 'OK') {
+          statusEl.textContent = 'Thank you! Your availability has been submitted.';
+          const submitBtn = document.getElementById('submit_button');
+          if (submitBtn) submitBtn.disabled = true;
+        } else {
+          statusEl.textContent =
+            'Submission completed, but the server did not return a clear OK response. ' +
+            'If you are unsure, please contact the scheduler.';
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error submitting form. Please contact the scheduler if this continues.';
       }
     });
   </script>
